@@ -60,8 +60,17 @@ func (u *DBCacheGenerator) GenerateDBCachePrimary(ctx context.Context) (*DBCache
 	return dbCache, nil
 }
 
-func (u *DBCacheGenerator) GenerateDBCacheSecondary(ctx context.Context) (map[string][]*ColumnDesc, error) {
-	return u.genColumnCacheAll(ctx)
+func (u *DBCacheGenerator) GenerateDBCacheSecondary(ctx context.Context) (map[string][]*ColumnDesc, map[string]map[string][]*ForeignKey, error) {
+	columns, err := u.genColumnCacheAll(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	fkMap, err := u.genCompleteForeignKeysCache(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return columns, fkMap, nil
 }
 
 func (u *DBCacheGenerator) genSchemaCache(ctx context.Context) (map[string]string, error) {
@@ -116,6 +125,40 @@ func (u *DBCacheGenerator) genForeignKeysCache(ctx context.Context, schemaName s
 		retVal[elem[1].Table] = refs
 	}
 	return retVal, nil
+}
+
+func (u *DBCacheGenerator) genCompleteForeignKeysCache(ctx context.Context) (map[string]map[string][]*ForeignKey, error) {
+	schemas, err := u.repo.Schemas(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	fkCache := make(map[string]map[string][]*ForeignKey)
+	for _, schema := range schemas {
+		schemaCache, err := u.genForeignKeysCache(ctx, schema)
+		if err != nil {
+			continue
+		}
+
+		for tableName, schemaRefMap := range schemaCache {
+			fkCacheRefMap, ok := fkCache[tableName]
+			if !ok {
+				fkCache[tableName] = schemaRefMap
+				continue
+			}
+
+			for refTableName, fks := range schemaRefMap {
+				schemafks, ok := fkCacheRefMap[refTableName]
+				if !ok {
+					fkCacheRefMap[refTableName] = fks
+					continue
+				}
+				fkCacheRefMap[refTableName] = append(fkCacheRefMap[refTableName], schemafks...)
+			}
+		}
+	}
+
+	return fkCache, nil
 }
 
 func genColumnMap(columnDescs []*ColumnDesc) map[string][]*ColumnDesc {

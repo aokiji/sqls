@@ -40,6 +40,14 @@ func (w *Worker) setColumnCache(col map[string][]*ColumnDesc) {
 	}
 }
 
+func (w *Worker) setForeignKeysCache(fksCache map[string]map[string][]*ForeignKey) {
+	w.lock.Lock()
+	defer w.lock.Unlock()
+	if w.dbCache != nil {
+		w.dbCache.ForeignKeys = fksCache
+	}
+}
+
 func (w *Worker) Start() {
 	go func() {
 		log.Println("db worker: start")
@@ -50,11 +58,12 @@ func (w *Worker) Start() {
 				return
 			case <-w.update:
 				generator := NewDBCacheUpdater(w.dbRepo)
-				col, err := generator.GenerateDBCacheSecondary(context.Background())
+				col, fksCache, err := generator.GenerateDBCacheSecondary(context.Background())
 				if err != nil {
 					log.Println(err)
 				}
 				w.setColumnCache(col)
+				w.setForeignKeysCache(fksCache)
 				log.Println("db worker: Update db cache secondary complete")
 			}
 		}
