@@ -189,7 +189,7 @@ func parseForeignKeys(rows *sql.Rows, schemaName string) ([]*ForeignKey, error) 
 	}
 
 	var retVal []*ForeignKey
-	var prevFk string
+	var prevFk, prevTable string
 	var cur *ForeignKey
 	for rows.Next() {
 		var fkItem fkItemDesc
@@ -222,7 +222,7 @@ func parseForeignKeys(rows *sql.Rows, schemaName string) ([]*ForeignKey, error) 
 		r.Schema = fkItem.refSchema
 		r.Table = fkItem.refTable
 		r.Name = fkItem.refColumn
-		if fkItem.fkID != prevFk {
+		if fkItem.fkID != prevFk || fkItem.table != prevTable {
 			if cur != nil {
 				retVal = append(retVal, cur)
 			}
@@ -230,6 +230,7 @@ func parseForeignKeys(rows *sql.Rows, schemaName string) ([]*ForeignKey, error) 
 		}
 		*cur = append(*cur, [2]*ColumnBase{&l, &r})
 		prevFk = fkItem.fkID
+		prevTable = fkItem.table
 	}
 
 	if cur != nil {
