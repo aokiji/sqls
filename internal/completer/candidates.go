@@ -145,20 +145,25 @@ func (c *Completer) TableCandidates(parent *completionParent, targetTables []*pa
 
 	switch parent.Type {
 	case ParentTypeNone:
-		excludeTables := []string{}
-		for _, table := range c.DBCache.SortedTables() {
-			isExclude := false
-			for _, targetTable := range targetTables {
-				if table == targetTable.Name {
-					isExclude = true
-				}
-			}
-			if isExclude {
-				continue
-			}
-			excludeTables = append(excludeTables, table)
+		targetTablesMap := make(map[string]*parseutil.TableInfo)
+		for _, targetTable := range targetTables {
+			targetTablesMap[targetTable.Name] = targetTable
 		}
-		candidates = append(candidates, generateTableCandidates(excludeTables, c.DBCache)...)
+		for schemaKey, schema := range c.DBCache.Schemas {
+			excludeTables := []string{}
+
+			tables := c.DBCache.SchemaTables[schemaKey]
+			for _, table := range tables {
+				_, isExclude := targetTablesMap[table]
+				if isExclude {
+					continue
+				}
+				excludeTables = append(excludeTables, table)
+			}
+
+			schemaCandidates := generateTableCandidatesBySchema(schema, excludeTables, c.DBCache)
+			candidates = append(candidates, schemaCandidates...)
+		}
 	case ParentTypeSchema:
 		tables, ok := c.DBCache.SortedTablesByDBName(parent.Name)
 		if ok {
@@ -222,7 +227,7 @@ func (c *Completer) joinCandidates(lastTable *parseutil.TableInfo,
 	for k, v := range fkMap {
 		for _, fks := range v {
 			for _, fk := range fks {
-				candidates = append(candidates, generateForeignKeyCandidate(k, tMap, aliases,
+				candidates = append(candidates, generateForeignKeyCandidate(c.DBCache.DefaultSchema, k, tMap, aliases,
 					fk, joinOn, lowercaseKeywords))
 			}
 		}
@@ -262,7 +267,7 @@ func generateTableAlias(target string,
 	return rv
 }
 
-func generateForeignKeyCandidate(target string,
+func generateForeignKeyCandidate(defaultSchema, target string,
 	tMap map[string]*parseutil.TableInfo,
 	aliases map[string]interface{},
 	fk *database.ForeignKey,
@@ -295,8 +300,18 @@ func generateForeignKeyCandidate(target string,
 		if lowercaseKeywords {
 			onKw = "on"
 		}
+		var tableName string
+		fkColumn := (*fk)[0][0]
+		if fkColumn.Table != target {
+			fkColumn = (*fk)[0][1]
+		}
+		if fkColumn.Schema != defaultSchema {
+			tableName = fmt.Sprintf("%s.%s", fkColumn.Schema, target)
+		} else {
+			tableName = target
+		}
 		for _, b := range builder {
-			b.sb.WriteString(fmt.Sprintf("%s %s %s ", target, b.alias, onKw))
+			b.sb.WriteString(fmt.Sprintf("%s %s %s ", tableName, b.alias, onKw))
 		}
 	}
 	andKw := " AND "
@@ -336,30 +351,20 @@ func generateForeignKeyCandidate(target string,
 }
 
 func generateTableCandidates(tables []string, dbCache *database.DBCache) []lsp.CompletionItem {
-	candidates := []lsp.CompletionItem{}
-	for _, tableName := range tables {
-		candidate := lsp.CompletionItem{
-			Label:  tableName,
-			Kind:   lsp.ClassCompletion,
-			Detail: "table",
-		}
-		cols, ok := dbCache.ColumnDescs(tableName)
-		if ok {
-			candidate.Documentation = lsp.MarkupContent{
-				Kind:  lsp.Markdown,
-				Value: database.TableDoc(tableName, cols),
-			}
-		}
-		candidates = append(candidates, candidate)
-	}
-	return candidates
+	return generateTableCandidatesBySchema(dbCache.DefaultSchema, tables, dbCache)
 }
 
 func generateTableCandidatesBySchema(schemaName string, tables []string, dbCache *database.DBCache) []lsp.CompletionItem {
 	candidates := []lsp.CompletionItem{}
 	for _, tableName := range tables {
+		var label string
+		if schemaName != dbCache.DefaultSchema {
+			label = fmt.Sprintf("%s.%s", schemaName, tableName)
+		} else {
+			label = tableName
+		}
 		candidate := lsp.CompletionItem{
-			Label:  tableName,
+			Label:  label,
 			Kind:   lsp.ClassCompletion,
 			Detail: "table",
 		}

@@ -391,7 +391,7 @@ func (db *PostgreSQLDBRepository) DescribeForeignKeysBySchema(ctx context.Contex
 		ctx,
 		`
 		SELECT fk.conname AS constraint_name, c1.relname AS table_name, a1.attname AS column_name, c2.relname AS
-		    foreign_table_name, a2.attname AS foreign_column_name
+		    foreign_table_name, a2.attname AS foreign_column_name, c2.relnamespace::regnamespace AS foreign_schema_name
 		FROM pg_catalog.pg_constraint fk
 		    JOIN pg_catalog.pg_class c1 ON c1.oid = fk.conrelid
 		    JOIN pg_catalog.pg_attribute a1 ON a1.attrelid = c1.oid

@@ -64,6 +64,7 @@ type fkItemDesc struct {
 	column    string
 	refTable  string
 	refColumn string
+	refSchema string
 }
 
 func (cd *ColumnDesc) OnelineDesc() string {
@@ -181,18 +182,36 @@ func SubqueryColumnDoc(identName string, views []*parseutil.SubQueryView, dbCach
 }
 
 func parseForeignKeys(rows *sql.Rows, schemaName string) ([]*ForeignKey, error) {
+	columns, err := rows.Columns()
+
+	if err != nil {
+		return nil, err
+	}
+
 	var retVal []*ForeignKey
 	var prevFk string
 	var cur *ForeignKey
 	for rows.Next() {
 		var fkItem fkItemDesc
-		err := rows.Scan(
-			&fkItem.fkID,
-			&fkItem.table,
-			&fkItem.column,
-			&fkItem.refTable,
-			&fkItem.refColumn,
-		)
+		if len(columns) == 6 {
+			err = rows.Scan(
+				&fkItem.fkID,
+				&fkItem.table,
+				&fkItem.column,
+				&fkItem.refTable,
+				&fkItem.refColumn,
+				&fkItem.refSchema,
+			)
+		} else {
+			err = rows.Scan(
+				&fkItem.fkID,
+				&fkItem.table,
+				&fkItem.column,
+				&fkItem.refTable,
+				&fkItem.refColumn,
+			)
+			fkItem.refSchema = schemaName
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -200,7 +219,7 @@ func parseForeignKeys(rows *sql.Rows, schemaName string) ([]*ForeignKey, error) 
 		l.Schema = schemaName
 		l.Table = fkItem.table
 		l.Name = fkItem.column
-		r.Schema = l.Schema
+		r.Schema = fkItem.refSchema
 		r.Table = fkItem.refTable
 		r.Name = fkItem.refColumn
 		if fkItem.fkID != prevFk {
