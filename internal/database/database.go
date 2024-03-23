@@ -107,10 +107,13 @@ func TableDoc(tableName string, cols []*ColumnDesc) string {
 	fmt.Fprintln(buf)
 	fmt.Fprintln(buf)
 	fmt.Fprintln(buf)
-	fmt.Fprintln(buf, "| Name&nbsp;&nbsp; | Type&nbsp;&nbsp; | Primary&nbsp;key&nbsp;&nbsp; | Default&nbsp;&nbsp; | Extra&nbsp;&nbsp; |")
-	fmt.Fprintln(buf, "| :--------------- | :--------------- | :---------------------- | :------------------ | :---------------- |")
+
+	rowFormat := "| `%-20s` | `%-30s` | `%-15s` | `%-20s` | `%-20s` |"
+
+	fmt.Fprintf(buf,rowFormat+"\n", "Name", "Type", "Primary key", "Default", "Extra")
+	fmt.Fprintf(buf,  "| %-20s | %-30s | %-15s | %-20s | %-20s |\n", ":"+strings.Repeat("-", 19), ":"+strings.Repeat("-", 29), ":"+strings.Repeat("-", 14), ":"+strings.Repeat("-", 19), ":"+strings.Repeat("-", 19))
 	for _, col := range cols {
-		fmt.Fprintf(buf, "| `%s` | `%s` | `%s` | `%s` | %s |", col.Name, col.Type, col.Key, Coalesce(col.Default.String, "-"), col.Extra)
+		fmt.Fprintf(buf, rowFormat, col.Name, col.Type, col.Key, Coalesce(col.Default.String, "-"), col.Extra)
 		fmt.Fprintln(buf)
 	}
 	return buf.String()
