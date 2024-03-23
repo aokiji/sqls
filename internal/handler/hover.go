@@ -298,7 +298,8 @@ func hoverContentFromChildIdent(ctx *hoverContext, identName string, dbCache *da
 	case parentTypeNone:
 		return nil
 	case parentTypeSchema:
-		columns, ok := dbCache.ColumnDescs(identName)
+		schemaName := ctx.parent.Name
+		columns, ok := dbCache.ColumnDatabase(schemaName, identName)
 		if ok {
 			return tableHoverInfo(identName, columns)
 		}
