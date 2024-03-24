@@ -1,0 +1,17 @@
+version: '3'
+
+services:
+  db:
+    container_name: sqls-test-postgres
+    image: postgres:12-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: example_user
+      POSTGRES_PASSWORD: example_password
+      POSTGRES_DB: example_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U example_user -d example_db"]
+      interval: 5s
+      retries: 5
+    volumes:
+      - ./init.postgres.sql:/docker-entrypoint-initdb.d/init.sql
