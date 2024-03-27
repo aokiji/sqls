@@ -225,7 +225,7 @@ func (db *PostgreSQLDBRepository) DescribeDatabaseTable(ctx context.Context) ([]
 	rows, err := db.Conn.QueryContext(
 		ctx,
 		`
-	SELECT DISTINCT ON (table_name, a.attnum)
+	SELECT DISTINCT ON (table_schema, table_name, a.attnum)
 	    c1.relnamespace::regnamespace AS table_schema, c1.relname AS table_name, a.attname AS column_name, CASE WHEN
 		t.typtype = 'd'::"char" THEN
 		CASE WHEN bt.typelem <> 0::oid

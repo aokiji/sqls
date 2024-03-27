@@ -36,6 +36,12 @@ CREATE TABLE IF NOT EXISTS extra.client_invoices (
     FOREIGN KEY(client_id) REFERENCES clients(id)
 );
 
+-- lets copy the same table so that we can check if duplicates are handle ok
+CREATE TABLE IF NOT EXISTS extra.clients ( 
+    extra_data_field double precision,
+    LIKE public.clients INCLUDING ALL 
+);
+
 -- create partition tables for extra.client_invoices
 DO $$
 DECLARE

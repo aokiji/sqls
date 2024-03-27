@@ -94,7 +94,7 @@ func (tx *TestContext) initServer() {
 func (tx *TestContext) waitServerReady() {
 	tx.test.Helper()
 
-	timeToWait := 300 * time.Millisecond 
+	timeToWait := 300 * time.Millisecond
 	tries := 5
 	isUpdated := false
 	for i := 0; i < tries && !isUpdated; i++ {
@@ -161,6 +161,16 @@ func TestCompletionIntegration(t *testing.T) {
 		expectToFindCompletionItemWithLabel(t, "id", completionItems)
 		expectToFindCompletionItemWithLabel(t, "name", completionItems)
 		expectToFindCompletionItemWithLabel(t, "type_id", completionItems)
+	})
+
+	t.Run("Column completion on duplicated table in other schema", func(t *testing.T) {
+		tx.setFileText("SELECT  FROM extra.clients ORDER BY id ASC")
+		completionItems := tx.requestCompletionAt(lsp.Position{Character: 7, Line: 0})
+
+		expectToFindCompletionItemWithLabel(t, "id", completionItems)
+		expectToFindCompletionItemWithLabel(t, "name", completionItems)
+		expectToFindCompletionItemWithLabel(t, "type_id", completionItems)
+		expectToFindCompletionItemWithLabel(t, "extra_data_field", completionItems)
 	})
 
 	t.Run("Join completion using given table foreign key", func(t *testing.T) {
