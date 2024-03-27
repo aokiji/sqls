@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"sync"
+	"sync/atomic"
 )
 
 type Worker struct {
@@ -13,6 +14,7 @@ type Worker struct {
 	done   chan struct{}
 	update chan struct{}
 	lock   sync.Mutex
+	isUpdated atomic.Bool
 }
 
 func NewWorker() *Worker {
@@ -24,6 +26,10 @@ func NewWorker() *Worker {
 
 func (w *Worker) Cache() *DBCache {
 	return w.dbCache
+}
+
+func (w *Worker) UpdateCompleted() bool {
+	return w.isUpdated.Load()
 }
 
 func (w *Worker) setCache(c *DBCache) {
@@ -57,6 +63,7 @@ func (w *Worker) Start() {
 				log.Println("db worker: done")
 				return
 			case <-w.update:
+				w.isUpdated.Store(false)
 				generator := NewDBCacheUpdater(w.dbRepo)
 				col, fksCache, err := generator.GenerateDBCacheSecondary(context.Background())
 				if err != nil {
@@ -64,6 +71,7 @@ func (w *Worker) Start() {
 				}
 				w.setColumnCache(col)
 				w.setForeignKeysCache(fksCache)
+				w.isUpdated.Store(true)
 				log.Println("db worker: Update db cache secondary complete")
 			}
 		}

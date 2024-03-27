@@ -68,6 +68,10 @@ func panicf(r interface{}, format string, v ...interface{}) error {
 	return nil
 }
 
+func (s *Server) UpdateCompleted() bool {
+	return s.worker.UpdateCompleted()
+}
+
 func (s *Server) Stop() error {
 	if err := s.dbConn.Close(); err != nil {
 		return err

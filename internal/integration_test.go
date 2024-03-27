@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/sourcegraph/jsonrpc2"
 
@@ -43,6 +44,7 @@ func (tx *TestContext) setup() {
 	tx.test.Helper()
 	tx.ensureDatabaseReadyOrSkip()
 	tx.initServer()
+	tx.waitServerReady()
 }
 
 func (tx *TestContext) tearDown() {
@@ -86,6 +88,23 @@ func (tx *TestContext) initServer() {
 	}
 	if err := tx.conn.Call(tx.ctx, "initialize", params, nil); err != nil {
 		tx.test.Fatal("conn.Call initialize:", err)
+	}
+}
+
+func (tx *TestContext) waitServerReady() {
+	tx.test.Helper()
+
+	timeToWait := 300 * time.Millisecond 
+	tries := 5
+	isUpdated := false
+	for i := 0; i < tries && !isUpdated; i++ {
+		isUpdated = tx.server.UpdateCompleted()
+		time.Sleep(timeToWait)
+		tx.test.Logf("Server is not yet fully updated, waiting %s", timeToWait)
+	}
+
+	if !isUpdated {
+		tx.test.Fatal("Timeout waiting for server to be fully updated")
 	}
 }
 
