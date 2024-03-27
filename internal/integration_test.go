@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -22,9 +23,9 @@ type TestContext struct {
 	connServer     *jsonrpc2.Conn
 	server         *handler.Server
 	ctx            context.Context
-	uri            string
 	test           *testing.T
 	databaseSource string
+	sequence       int
 }
 
 func newTestContext(t *testing.T) *TestContext {
@@ -35,7 +36,6 @@ func newTestContext(t *testing.T) *TestContext {
 		h:      handler,
 		ctx:    ctx,
 		server: server,
-		uri:    "file:///home/user/file.sql",
 		test:   t,
 	}
 }
@@ -94,8 +94,8 @@ func (tx *TestContext) initServer() {
 func (tx *TestContext) waitServerReady() {
 	tx.test.Helper()
 
-	timeToWait := 300 * time.Millisecond
-	tries := 5
+	timeToWait := 100 * time.Millisecond
+	tries := 10
 	isUpdated := false
 	for i := 0; i < tries && !isUpdated; i++ {
 		isUpdated = tx.server.UpdateCompleted()
@@ -108,12 +108,18 @@ func (tx *TestContext) waitServerReady() {
 	}
 }
 
-func (tx *TestContext) setFileText(openText string) {
+func (tx *TestContext) generateFileURI() string {
+	tx.sequence += 1
+	uri := fmt.Sprintf("file:///home/user/file%d.sql", tx.sequence)
+	return uri
+}
+
+func (tx *TestContext) setFileText(fileURI, openText string) {
 	tx.test.Helper()
 
 	didOpenParams := lsp.DidOpenTextDocumentParams{
 		TextDocument: lsp.TextDocumentItem{
-			URI:        tx.uri,
+			URI:        fileURI,
 			LanguageID: "sql",
 			Version:    0,
 			Text:       openText,
@@ -124,12 +130,12 @@ func (tx *TestContext) setFileText(openText string) {
 	}
 }
 
-func (tx *TestContext) requestCompletionAt(position lsp.Position) []lsp.CompletionItem {
+func (tx *TestContext) requestCompletionAt(uri string, position lsp.Position) []lsp.CompletionItem {
 	completionParams := lsp.CompletionParams{
 		CompletionContext: lsp.CompletionContext{TriggerKind: 1},
 		TextDocumentPositionParams: lsp.TextDocumentPositionParams{
 			Position:     position,
-			TextDocument: lsp.TextDocumentIdentifier{URI: tx.uri}},
+			TextDocument: lsp.TextDocumentIdentifier{URI: uri}},
 	}
 
 	var completionItems []lsp.CompletionItem
@@ -146,8 +152,11 @@ func TestCompletionIntegration(t *testing.T) {
 	t.Cleanup(func() { tx.tearDown() })
 
 	t.Run("Simple table completion", func(t *testing.T) {
-		tx.setFileText("SELECT * FROM client ORDER BY id ASC")
-		completionItems := tx.requestCompletionAt(lsp.Position{Character: 20, Line: 0})
+		uri := tx.generateFileURI()
+		t.Parallel()
+
+		tx.setFileText(uri, "SELECT * FROM client ORDER BY id ASC")
+		completionItems := tx.requestCompletionAt(uri, lsp.Position{Character: 20, Line: 0})
 
 		expectToFindCompletionItemWithLabel(t, "clients", completionItems)
 		expectToFindCompletionItemWithLabel(t, "client_types", completionItems)
@@ -155,8 +164,11 @@ func TestCompletionIntegration(t *testing.T) {
 	})
 
 	t.Run("Simple column completion", func(t *testing.T) {
-		tx.setFileText("SELECT  FROM clients ORDER BY id ASC")
-		completionItems := tx.requestCompletionAt(lsp.Position{Character: 7, Line: 0})
+		uri := tx.generateFileURI()
+		t.Parallel()
+
+		tx.setFileText(uri, "SELECT  FROM clients ORDER BY id ASC")
+		completionItems := tx.requestCompletionAt(uri, lsp.Position{Character: 7, Line: 0})
 
 		expectToFindCompletionItemWithLabel(t, "id", completionItems)
 		expectToFindCompletionItemWithLabel(t, "name", completionItems)
@@ -164,8 +176,11 @@ func TestCompletionIntegration(t *testing.T) {
 	})
 
 	t.Run("Column completion on duplicated table in other schema", func(t *testing.T) {
-		tx.setFileText("SELECT  FROM extra.clients ORDER BY id ASC")
-		completionItems := tx.requestCompletionAt(lsp.Position{Character: 7, Line: 0})
+		uri := tx.generateFileURI()
+		t.Parallel()
+
+		tx.setFileText(uri, "SELECT  FROM extra.clients ORDER BY id ASC")
+		completionItems := tx.requestCompletionAt(uri, lsp.Position{Character: 7, Line: 0})
 
 		expectToFindCompletionItemWithLabel(t, "id", completionItems)
 		expectToFindCompletionItemWithLabel(t, "name", completionItems)
@@ -174,8 +189,11 @@ func TestCompletionIntegration(t *testing.T) {
 	})
 
 	t.Run("Join completion using given table foreign key", func(t *testing.T) {
-		tx.setFileText("SELECT * FROM clients join ORDER BY id ASC")
-		completionItems := tx.requestCompletionAt(lsp.Position{Character: 27, Line: 0})
+		uri := tx.generateFileURI()
+		t.Parallel()
+
+		tx.setFileText(uri, "SELECT * FROM clients join ORDER BY id ASC")
+		completionItems := tx.requestCompletionAt(uri, lsp.Position{Character: 27, Line: 0})
 
 		expectToFindCompletionItemWithLabel(t, "client_types c1 ON c1.id = clients.type_id", completionItems)
 	})
