@@ -24,11 +24,11 @@ type TestContext struct {
 	server         *handler.Server
 	ctx            context.Context
 	test           *testing.T
-	databaseSource string
+	dbConfig       *database.DBConfig
 	sequence       int
 }
 
-func newTestContext(t *testing.T) *TestContext {
+func newTestContext(t *testing.T, dbConfig *database.DBConfig) *TestContext {
 	server := handler.NewServer()
 	handler := jsonrpc2.HandlerWithError(server.Handle)
 	ctx := context.Background()
@@ -37,12 +37,15 @@ func newTestContext(t *testing.T) *TestContext {
 		ctx:    ctx,
 		server: server,
 		test:   t,
+		dbConfig: dbConfig,
 	}
 }
 
 func (tx *TestContext) setup() {
 	tx.test.Helper()
-	tx.ensureDatabaseReadyOrSkip()
+
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+
 	tx.initServer()
 	tx.waitServerReady()
 }
@@ -50,26 +53,17 @@ func (tx *TestContext) setup() {
 func (tx *TestContext) tearDown() {
 	if tx.conn != nil {
 		if err := tx.conn.Close(); err != nil {
-			log.Fatal("conn.Close:", err)
+			tx.test.Fatal("conn.Close:", err)
 		}
 	}
 
 	if tx.connServer != nil {
 		if err := tx.connServer.Close(); err != nil {
 			if !errors.Is(err, jsonrpc2.ErrClosed) {
-				log.Fatal("connServer.Close:", err)
+				tx.test.Fatal("connServer.Close:", err)
 			}
 		}
 	}
-}
-
-func (tx *TestContext) ensureDatabaseReadyOrSkip() {
-	tx.test.Helper()
-	value, ok := os.LookupEnv("SQLS_TEST_POSTGRES_SOURCE")
-	if !ok {
-		tx.test.Skip("No database available for integration test")
-	}
-	tx.databaseSource = value
 }
 
 func (tx *TestContext) initServer() {
@@ -83,7 +77,7 @@ func (tx *TestContext) initServer() {
 	// Initialize Language Server
 	params := lsp.InitializeParams{
 		InitializationOptions: lsp.InitializeOptions{
-			ConnectionConfig: &database.DBConfig{Driver: "postgresql", DataSourceName: tx.databaseSource},
+			ConnectionConfig: tx.dbConfig,
 		},
 	}
 	if err := tx.conn.Call(tx.ctx, "initialize", params, nil); err != nil {
@@ -146,8 +140,32 @@ func (tx *TestContext) requestCompletionAt(uri string, position lsp.Position) []
 	return completionItems
 }
 
+
+func ensureDatabaseReadyOrSkip(t *testing.T, envVariable string) string {
+	t.Helper()
+	value, ok := os.LookupEnv(envVariable)
+	if !ok {
+		t.Skip("No database available for integration test")
+	}
+	return value
+}
+
 func TestCompletionIntegration(t *testing.T) {
-	tx := newTestContext(t)
+	t.Helper()
+
+	t.Run("mysql 57", func(t *testing.T) {
+		databaseSource := ensureDatabaseReadyOrSkip(t, "SQLS_TEST_MYSQL57_SOURCE")
+		completionIntegrationTest(t, &database.DBConfig{DataSourceName: databaseSource, Driver: "mysql"})
+	})
+
+	t.Run("postgres 12", func(t *testing.T) {
+		databaseSource := ensureDatabaseReadyOrSkip(t, "SQLS_TEST_POSTGRES12_SOURCE")
+		completionIntegrationTest(t, &database.DBConfig{DataSourceName: databaseSource, Driver: "postgresql"})
+	})
+}
+
+func completionIntegrationTest(t *testing.T, dbConfig *database.DBConfig ) {
+	tx := newTestContext(t, dbConfig)
 	tx.setup()
 	t.Cleanup(func() { tx.tearDown() })
 
