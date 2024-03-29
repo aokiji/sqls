@@ -68,28 +68,29 @@ var hoverTestCases = []struct {
 	{
 		name:   "table ident head",
 		input:  "SELECT ID, Name FROM city",
-		output: "# `city` table\n\n\n| Name&nbsp;&nbsp; | Type&nbsp;&nbsp; | Primary&nbsp;key&nbsp;&nbsp; | Default&nbsp;&nbsp; | Extra&nbsp;&nbsp; |\n| :--------------- | :--------------- | :---------------------- | :------------------ | :---------------- |\n| `ID` | `int(11)` | `PRI` | `<null>` | auto_increment |\n| `Name` | `char(35)` | `` | `-` |  |\n| `CountryCode` | `char(3)` | `MUL` | `-` |  |\n| `District` | `char(20)` | `` | `-` |  |\n| `Population` | `int(11)` | `` | `-` |  |\n",
+		output: "# `city` table\n\n\n| Name                 | Type                           | Primary key     | Default              | Extra                |\n| :------------------- | :----------------------------- | :-------------- | :------------------- | :------------------- |\n| `ID`                 | `int(11)`                      | `PRI`           | `<null>`             | `auto_increment`     |\n| `Name`               | `char(35)`                     |                 | `-`                  |                      |\n| `CountryCode`        | `char(3)`                      | `MUL`           | `-`                  |                      |\n| `District`           | `char(20)`                     |                 | `-`                  |                      |\n| `Population`         | `int(11)`                      |                 | `-`                  |                      |\n",
 		line:   0,
 		col:    22,
 	},
 	{
 		name:   "table ident tail",
 		input:  "SELECT ID, Name FROM city",
-		output: "# `city` table\n\n\n| Name&nbsp;&nbsp; | Type&nbsp;&nbsp; | Primary&nbsp;key&nbsp;&nbsp; | Default&nbsp;&nbsp; | Extra&nbsp;&nbsp; |\n| :--------------- | :--------------- | :---------------------- | :------------------ | :---------------- |\n| `ID` | `int(11)` | `PRI` | `<null>` | auto_increment |\n| `Name` | `char(35)` | `` | `-` |  |\n| `CountryCode` | `char(3)` | `MUL` | `-` |  |\n| `District` | `char(20)` | `` | `-` |  |\n| `Population` | `int(11)` | `` | `-` |  |\n",
+		output: "# `city` table\n\n\n| Name                 | Type                           | Primary key     | Default              | Extra                |\n| :------------------- | :----------------------------- | :-------------- | :------------------- | :------------------- |\n| `ID`                 | `int(11)`                      | `PRI`           | `<null>`             | `auto_increment`     |\n| `Name`               | `char(35)`                     |                 | `-`                  |                      |\n| `CountryCode`        | `char(3)`                      | `MUL`           | `-`                  |                      |\n| `District`           | `char(20)`                     |                 | `-`                  |                      |\n| `Population`         | `int(11)`                      |                 | `-`                  |                      |\n",
 		line:   0,
 		col:    25,
 	},
 	{
 		name:   "select member ident parent head",
 		input:  "SELECT city.ID, city.Name FROM city",
-		output: "# `city` table\n\n\n| Name&nbsp;&nbsp; | Type&nbsp;&nbsp; | Primary&nbsp;key&nbsp;&nbsp; | Default&nbsp;&nbsp; | Extra&nbsp;&nbsp; |\n| :--------------- | :--------------- | :---------------------- | :------------------ | :---------------- |\n| `ID` | `int(11)` | `PRI` | `<null>` | auto_increment |\n| `Name` | `char(35)` | `` | `-` |  |\n| `CountryCode` | `char(3)` | `MUL` | `-` |  |\n| `District` | `char(20)` | `` | `-` |  |\n| `Population` | `int(11)` | `` | `-` |  |\n",
+
+		output: "# `city` table\n\n\n| Name                 | Type                           | Primary key     | Default              | Extra                |\n| :------------------- | :----------------------------- | :-------------- | :------------------- | :------------------- |\n| `ID`                 | `int(11)`                      | `PRI`           | `<null>`             | `auto_increment`     |\n| `Name`               | `char(35)`                     |                 | `-`                  |                      |\n| `CountryCode`        | `char(3)`                      | `MUL`           | `-`                  |                      |\n| `District`           | `char(20)`                     |                 | `-`                  |                      |\n| `Population`         | `int(11)`                      |                 | `-`                  |                      |\n",
 		line:   0,
 		col:    8,
 	},
 	{
 		name:   "select member ident parent tail",
 		input:  "SELECT city.ID, city.Name FROM city",
-		output: "# `city` table\n\n\n| Name&nbsp;&nbsp; | Type&nbsp;&nbsp; | Primary&nbsp;key&nbsp;&nbsp; | Default&nbsp;&nbsp; | Extra&nbsp;&nbsp; |\n| :--------------- | :--------------- | :---------------------- | :------------------ | :---------------- |\n| `ID` | `int(11)` | `PRI` | `<null>` | auto_increment |\n| `Name` | `char(35)` | `` | `-` |  |\n| `CountryCode` | `char(3)` | `MUL` | `-` |  |\n| `District` | `char(20)` | `` | `-` |  |\n| `Population` | `int(11)` | `` | `-` |  |\n",
+		output: "# `city` table\n\n\n| Name                 | Type                           | Primary key     | Default              | Extra                |\n| :------------------- | :----------------------------- | :-------------- | :------------------- | :------------------- |\n| `ID`                 | `int(11)`                      | `PRI`           | `<null>`             | `auto_increment`     |\n| `Name`               | `char(35)`                     |                 | `-`                  |                      |\n| `CountryCode`        | `char(3)`                      | `MUL`           | `-`                  |                      |\n| `District`           | `char(20)`                     |                 | `-`                  |                      |\n| `Population`         | `int(11)`                      |                 | `-`                  |                      |\n",
 		line:   0,
 		col:    20,
 	},
@@ -117,7 +118,7 @@ var hoverTestCases = []struct {
 	{
 		name:   "select aliased member ident parent",
 		input:  "SELECT ci.ID, ci.Name FROM city AS ci",
-		output: "# `city` table\n\n\n| Name&nbsp;&nbsp; | Type&nbsp;&nbsp; | Primary&nbsp;key&nbsp;&nbsp; | Default&nbsp;&nbsp; | Extra&nbsp;&nbsp; |\n| :--------------- | :--------------- | :---------------------- | :------------------ | :---------------- |\n| `ID` | `int(11)` | `PRI` | `<null>` | auto_increment |\n| `Name` | `char(35)` | `` | `-` |  |\n| `CountryCode` | `char(3)` | `MUL` | `-` |  |\n| `District` | `char(20)` | `` | `-` |  |\n| `Population` | `int(11)` | `` | `-` |  |\n",
+		output: "# `city` table\n\n\n| Name                 | Type                           | Primary key     | Default              | Extra                |\n| :------------------- | :----------------------------- | :-------------- | :------------------- | :------------------- |\n| `ID`                 | `int(11)`                      | `PRI`           | `<null>`             | `auto_increment`     |\n| `Name`               | `char(35)`                     |                 | `-`                  |                      |\n| `CountryCode`        | `char(3)`                      | `MUL`           | `-`                  |                      |\n| `District`           | `char(20)`                     |                 | `-`                  |                      |\n| `Population`         | `int(11)`                      |                 | `-`                  |                      |\n",
 		line:   0,
 		col:    8,
 	},

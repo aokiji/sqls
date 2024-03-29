@@ -101,6 +101,19 @@ func Coalesce(str ...string) string {
 	return ""
 }
 
+func cellFormat(str ...string) []string {
+	result := []string{}
+	for _, s := range str {
+		if s != "" {
+			result = append(result, fmt.Sprintf("`%s`", s))
+		} else {
+			result = append(result, "")
+		}
+
+	}
+	return result
+}
+
 func TableDoc(tableName string, cols []*ColumnDesc) string {
 	buf := new(bytes.Buffer)
 	fmt.Fprintf(buf, "# `%s` table", tableName)
@@ -108,13 +121,21 @@ func TableDoc(tableName string, cols []*ColumnDesc) string {
 	fmt.Fprintln(buf)
 	fmt.Fprintln(buf)
 
-	rowFormat := "| `%-20s` | `%-30s` | `%-15s` | `%-20s` | `%-20s` |"
+	columnSizes := [5]int{20, 30, 15, 20, 20}
 
-	fmt.Fprintf(buf,rowFormat+"\n", "Name", "Type", "Primary key", "Default", "Extra")
-	fmt.Fprintf(buf,  "| %-20s | %-30s | %-15s | %-20s | %-20s |\n", ":"+strings.Repeat("-", 19), ":"+strings.Repeat("-", 29), ":"+strings.Repeat("-", 14), ":"+strings.Repeat("-", 19), ":"+strings.Repeat("-", 19))
+	rowFormat := fmt.Sprintf( "| %%-%ds | %%-%ds | %%-%ds | %%-%ds | %%-%ds |\n", columnSizes[0], columnSizes[1], columnSizes[2], columnSizes[3], columnSizes[4])
+
+	fmt.Fprintf(buf, rowFormat, "Name", "Type", "Primary key", "Default", "Extra")
+
+	var headerSeparators [5]string
+	for i, size := range columnSizes {
+		headerSeparators[i] = ":"+strings.Repeat("-", size - 1)
+	}
+	fmt.Fprintf(buf, rowFormat, headerSeparators[0], headerSeparators[1], headerSeparators[2], headerSeparators[3], headerSeparators[4])
+
 	for _, col := range cols {
-		fmt.Fprintf(buf, rowFormat, col.Name, col.Type, col.Key, Coalesce(col.Default.String, "-"), col.Extra)
-		fmt.Fprintln(buf)
+		cellContent := cellFormat(col.Name, col.Type, col.Key, Coalesce(col.Default.String, "-"), col.Extra)
+		fmt.Fprintf(buf, rowFormat, cellContent[0], cellContent[1], cellContent[2], cellContent[3], cellContent[4])
 	}
 	return buf.String()
 }
