@@ -385,8 +385,6 @@ func (db *PostgreSQLDBRepository) DescribeDatabaseTableBySchema(ctx context.Cont
 }
 
 func (db *PostgreSQLDBRepository) DescribeForeignKeysBySchema(ctx context.Context, schemaName string) ([]*ForeignKey, error) {
-	log.Printf("repository: describing foreign keys in schema %s", schemaName)
-
 	rows, err := db.Conn.QueryContext(
 		ctx,
 		`

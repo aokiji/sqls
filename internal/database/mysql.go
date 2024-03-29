@@ -312,7 +312,8 @@ func (db *MySQLDBRepository) DescribeForeignKeysBySchema(ctx context.Context, sc
 		   fks.TABLE_NAME,
 		   kcu.COLUMN_NAME,
 		   fks.REFERENCED_TABLE_NAME,
-		   kcu.REFERENCED_COLUMN_NAME
+		   kcu.REFERENCED_COLUMN_NAME,
+		   fks.UNIQUE_CONSTRAINT_SCHEMA
 	from INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS fks
 			 join INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
 				  on fks.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA

@@ -18,14 +18,14 @@ import (
 )
 
 type TestContext struct {
-	h              jsonrpc2.Handler
-	conn           *jsonrpc2.Conn
-	connServer     *jsonrpc2.Conn
-	server         *handler.Server
-	ctx            context.Context
-	test           *testing.T
-	dbConfig       *database.DBConfig
-	sequence       int
+	h          jsonrpc2.Handler
+	conn       *jsonrpc2.Conn
+	connServer *jsonrpc2.Conn
+	server     *handler.Server
+	ctx        context.Context
+	test       *testing.T
+	dbConfig   *database.DBConfig
+	sequence   int
 }
 
 func newTestContext(t *testing.T, dbConfig *database.DBConfig) *TestContext {
@@ -33,10 +33,10 @@ func newTestContext(t *testing.T, dbConfig *database.DBConfig) *TestContext {
 	handler := jsonrpc2.HandlerWithError(server.Handle)
 	ctx := context.Background()
 	return &TestContext{
-		h:      handler,
-		ctx:    ctx,
-		server: server,
-		test:   t,
+		h:        handler,
+		ctx:      ctx,
+		server:   server,
+		test:     t,
 		dbConfig: dbConfig,
 	}
 }
@@ -140,7 +140,6 @@ func (tx *TestContext) requestCompletionAt(uri string, position lsp.Position) []
 	return completionItems
 }
 
-
 func ensureDatabaseReadyOrSkip(t *testing.T, envVariable string) string {
 	t.Helper()
 	value, ok := os.LookupEnv(envVariable)
@@ -151,8 +150,6 @@ func ensureDatabaseReadyOrSkip(t *testing.T, envVariable string) string {
 }
 
 func TestCompletionIntegration(t *testing.T) {
-	t.Helper()
-
 	t.Run("mysql 57", func(t *testing.T) {
 		databaseSource := ensureDatabaseReadyOrSkip(t, "SQLS_TEST_MYSQL57_SOURCE")
 		completionIntegrationTest(t, &database.DBConfig{DataSourceName: databaseSource, Driver: "mysql"})
@@ -164,7 +161,7 @@ func TestCompletionIntegration(t *testing.T) {
 	})
 }
 
-func completionIntegrationTest(t *testing.T, dbConfig *database.DBConfig ) {
+func completionIntegrationTest(t *testing.T, dbConfig *database.DBConfig) {
 	tx := newTestContext(t, dbConfig)
 	tx.setup()
 	t.Cleanup(func() { tx.tearDown() })
@@ -214,6 +211,17 @@ func completionIntegrationTest(t *testing.T, dbConfig *database.DBConfig ) {
 		completionItems := tx.requestCompletionAt(uri, lsp.Position{Character: 27, Line: 0})
 
 		expectToFindCompletionItemWithLabel(t, "client_types c1 ON c1.id = clients.type_id", completionItems)
+	})
+
+	t.Run("Join completion on other schemas", func(t *testing.T) {
+		uri := tx.generateFileURI()
+		t.Parallel()
+
+		tx.setFileText(uri, "SELECT * FROM extra.client_custom_info join ORDER BY id ASC")
+		completionItems := tx.requestCompletionAt(uri, lsp.Position{Character: 50, Line: 0})
+
+		expectToFindCompletionItemWithLabel(t, "clients c1 ON c1.id = client_custom_info.client_id", completionItems)
+		expectToFindCompletionItemWithLabel(t, "extra.info_types i1 ON i1.id = client_custom_info.info_type_id", completionItems)
 	})
 }
 
