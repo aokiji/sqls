@@ -7,6 +7,26 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres12:
+        image: postgres:12
+        env:
+          POSTGRES_USER: example_user
+          POSTGRES_PASSWORD: example_password
+          POSTGRES_DB: example_db
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      mysql57:
+        image: mysql:5.7
+        env:
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: example_db
+          MYSQL_USER: example_user
+          MYSQL_PASSWORD: example_password
+        ports:
+          - 3306:3306
+        options: --health-cmd "mysqladmin ping -h localhost -uexample_user -pexample_password" --health-interval 5s --health-retries 5
     steps:
     - uses: actions/checkout@v3
     - name: Setup Go
@@ -17,5 +37,12 @@ jobs:
       uses: golangci/golangci-lint-action@v3
       with:
         version: v1.54
+    - name: Setup databases
+      run: |-
+          psql postgres://example_user:example_password@localhost:5432/example_db < init.postgres.sql;
+          mysql -hlocalhost -uroot -proot_password --protocol=tcp -D example_db < init.mysql57.sql
     - name: Test
       run: go test -coverprofile coverage.out -covermode atomic ./...
+      env:
+          SQLS_TEST_MYSQL57_SOURCE: example_user:example_password@tcp(localhost:3306)/public
+          SQLS_TEST_POSTGRES12_SOURCE: postgres://example_user:example_password@localhost:5432/example_db
