@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 	"strings"
+	"sync"
 )
 
 type DBCacheGenerator struct {
@@ -132,14 +133,37 @@ func (u *DBCacheGenerator) genCompleteForeignKeysCache(ctx context.Context) (map
 	if err != nil {
 		return nil, err
 	}
-
 	fkCache := make(map[string]map[string][]*ForeignKey)
+
+	var wg sync.WaitGroup
+	numWorkers := 8
+	schemaToProcess := make(chan string)
+	schemaCacheResult := make(chan map[string]map[string][]*ForeignKey, len(schemas))
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)	
+		go func(schemaToProcess chan string, wg *sync.WaitGroup) {
+			defer wg.Done()
+
+			for schema := range schemaToProcess {
+				schemaCache, _ := u.genForeignKeysCache(ctx, schema)
+				schemaCacheResult <- schemaCache
+			}
+		}(schemaToProcess, &wg) 
+	}
 	for _, schema := range schemas {
-		schemaCache, err := u.genForeignKeysCache(ctx, schema)
-		if err != nil {
+		schemaToProcess <- schema
+	}
+	close(schemaToProcess)
+
+	go func() {
+		wg.Wait()
+		close(schemaCacheResult)
+	}()
+
+	for schemaCache := range schemaCacheResult {
+		if schemaCache == nil {
 			continue
 		}
-
 		for tableName, schemaRefMap := range schemaCache {
 			fkCacheRefMap, ok := fkCache[tableName]
 			if !ok {
