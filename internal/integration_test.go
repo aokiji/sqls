@@ -1,3 +1,14 @@
+/*
+ 	To run these tests locally you will need local databases deployed
+	that can be deployed via docker
+	
+		docker compose -f docker-compose.test.yml up -d
+		
+		export SQLS_TEST_POSTGRES12_SOURCE="postgres://example_user:example_password@$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}'  sqls-test-postgres12):5432/example_db"
+
+		export SQLS_TEST_MYSQL57_SOURCE="example_user:example_password@tcp($(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}'  sqls-test-mysql57):3306)/public"
+		
+*/
 package handler
 
 import (
@@ -94,7 +105,6 @@ func (tx *TestContext) waitServerReady() {
 	for i := 0; i < tries && !isUpdated; i++ {
 		isUpdated = tx.server.UpdateCompleted()
 		time.Sleep(timeToWait)
-		tx.test.Logf("Server is not yet fully updated, waiting %s", timeToWait)
 	}
 
 	if !isUpdated {
