@@ -306,6 +306,16 @@ var selectExprCase = []completionTestCase{
 			"countrylanguage",
 		},
 	},
+	{
+		name:  "columns of table from non default database",
+		input: "select  from mysql.city_population",
+		line:  0,
+		col:   7,
+		want: []string{
+			"city_id",
+			"population",
+		},
+	},
 }
 
 var tableReferenceCase = []completionTestCase{
