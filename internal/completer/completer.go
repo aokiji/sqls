@@ -411,6 +411,8 @@ func getCompletionTypes(nw *parseutil.NodeWalker) *CompletionContext {
 
 func filterCandidates(candidates []lsp.CompletionItem, lastWord string) []lsp.CompletionItem {
 	filtered := []lsp.CompletionItem{}
+	withBackQuote := strings.HasPrefix(lastWord, "`")
+
 	for _, candidate := range candidates {
 		label := strings.ToUpper(candidate.Label)
 
@@ -419,10 +421,11 @@ func filterCandidates(candidates []lsp.CompletionItem, lastWord string) []lsp.Co
 				filtered = append(filtered, candidate)
 			}
 		} else {
-
-			index := strings.LastIndex(label, ".")	
-			if index != -1 {
-				label = label[index+1:]
+			if !withBackQuote {
+				index := strings.LastIndex(label, ".")	
+				if index != -1 {
+					label = label[index+1:]
+				}
 			}
 
 			if strings.HasPrefix(label, strings.ToUpper(lastWord)) {

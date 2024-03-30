@@ -333,6 +333,7 @@ var tableReferenceCase = []completionTestCase{
 			"performance_schema",
 			"sys",
 			"world",
+			"mysql.city_population",
 		},
 	},
 	{
@@ -349,6 +350,7 @@ var tableReferenceCase = []completionTestCase{
 			"`performance_schema`",
 			"`sys`",
 			"`world`",
+			"`mysql.city_population`",
 		},
 	},
 	{
