@@ -1,13 +1,12 @@
 /*
- 	To run these tests locally you will need local databases deployed
-	that can be deployed via docker
-	
-		docker compose -f docker-compose.test.yml up -d
-		
-		export SQLS_TEST_POSTGRES12_SOURCE="postgres://example_user:example_password@$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}'  sqls-test-postgres12):5432/example_db"
+	 	To run these tests locally you will need local databases deployed
+		that can be deployed via docker
 
-		export SQLS_TEST_MYSQL57_SOURCE="example_user:example_password@tcp($(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}'  sqls-test-mysql57):3306)/public"
-		
+			docker compose -f docker-compose.test.yml up -d
+
+			export SQLS_TEST_POSTGRES12_SOURCE="postgres://example_user:example_password@$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}'  sqls-test-postgres12):5432/example_db"
+
+			export SQLS_TEST_MYSQL57_SOURCE="example_user:example_password@tcp($(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}'  sqls-test-mysql57):3306)/public"
 */
 package handler
 
@@ -27,6 +26,52 @@ import (
 	"github.com/sqls-server/sqls/internal/handler"
 	"github.com/sqls-server/sqls/internal/lsp"
 )
+
+var completionTestCases = []struct {
+	name  string
+	input string
+	line  int
+	col   int
+	want  []string
+}{
+	{
+		name:  "Simple table completion",
+		input: "SELECT * FROM client ORDER BY id ASC",
+		line:  0,
+		col:   20,
+		want:  []string{"clients", "client_types", "extra.client_custom_info"},
+	},
+	{
+		name:  "Simple column completion",
+		input: "SELECT  FROM clients ORDER BY id ASC",
+		line:  0,
+		col:   7,
+		want:  []string{"id", "name", "type_id"},
+	},
+	{
+		name:  "Column completion on duplicated table in other schema",
+		input: "SELECT  FROM extra.clients ORDER BY id ASC",
+		line:  0,
+		col:   7,
+		want:  []string{"id", "name", "type_id", "extra_data_field"},
+	},
+	{
+		name:  "Join completion using given table foreign key",
+		input: "SELECT * FROM clients join ORDER BY id ASC",
+		line:  0,
+		col:   27,
+		want:  []string{"client_types c1 ON c1.id = clients.type_id"},
+	},
+	{
+		name:  "Join completion on other schemas",
+		input: "SELECT * FROM extra.client_custom_info join ORDER BY id ASC",
+		line:  0,
+		col:   50,
+		want: []string{
+			"clients c1 ON c1.id = client_custom_info.client_id",
+			"extra.info_types i1 ON i1.id = client_custom_info.info_type_id"},
+	},
+}
 
 type TestContext struct {
 	h          jsonrpc2.Handler
@@ -176,63 +221,20 @@ func completionIntegrationTest(t *testing.T, dbConfig *database.DBConfig) {
 	tx.setup()
 	t.Cleanup(func() { tx.tearDown() })
 
-	t.Run("Simple table completion", func(t *testing.T) {
-		uri := tx.generateFileURI()
-		t.Parallel()
+	for _, cur := range completionTestCases {
+		tc := cur
+		t.Run(tc.name, func(t *testing.T) {
+			uri := tx.generateFileURI()
+			t.Parallel()
 
-		tx.setFileText(uri, "SELECT * FROM client ORDER BY id ASC")
-		completionItems := tx.requestCompletionAt(uri, lsp.Position{Character: 20, Line: 0})
+			tx.setFileText(uri, tc.input)
+			completionItems := tx.requestCompletionAt(uri, lsp.Position{Character: tc.col, Line: tc.line})
 
-		expectToFindCompletionItemWithLabel(t, "clients", completionItems)
-		expectToFindCompletionItemWithLabel(t, "client_types", completionItems)
-		expectToFindCompletionItemWithLabel(t, "extra.client_custom_info", completionItems)
-	})
-
-	t.Run("Simple column completion", func(t *testing.T) {
-		uri := tx.generateFileURI()
-		t.Parallel()
-
-		tx.setFileText(uri, "SELECT  FROM clients ORDER BY id ASC")
-		completionItems := tx.requestCompletionAt(uri, lsp.Position{Character: 7, Line: 0})
-
-		expectToFindCompletionItemWithLabel(t, "id", completionItems)
-		expectToFindCompletionItemWithLabel(t, "name", completionItems)
-		expectToFindCompletionItemWithLabel(t, "type_id", completionItems)
-	})
-
-	t.Run("Column completion on duplicated table in other schema", func(t *testing.T) {
-		uri := tx.generateFileURI()
-		t.Parallel()
-
-		tx.setFileText(uri, "SELECT  FROM extra.clients ORDER BY id ASC")
-		completionItems := tx.requestCompletionAt(uri, lsp.Position{Character: 7, Line: 0})
-
-		expectToFindCompletionItemWithLabel(t, "id", completionItems)
-		expectToFindCompletionItemWithLabel(t, "name", completionItems)
-		expectToFindCompletionItemWithLabel(t, "type_id", completionItems)
-		expectToFindCompletionItemWithLabel(t, "extra_data_field", completionItems)
-	})
-
-	t.Run("Join completion using given table foreign key", func(t *testing.T) {
-		uri := tx.generateFileURI()
-		t.Parallel()
-
-		tx.setFileText(uri, "SELECT * FROM clients join ORDER BY id ASC")
-		completionItems := tx.requestCompletionAt(uri, lsp.Position{Character: 27, Line: 0})
-
-		expectToFindCompletionItemWithLabel(t, "client_types c1 ON c1.id = clients.type_id", completionItems)
-	})
-
-	t.Run("Join completion on other schemas", func(t *testing.T) {
-		uri := tx.generateFileURI()
-		t.Parallel()
-
-		tx.setFileText(uri, "SELECT * FROM extra.client_custom_info join ORDER BY id ASC")
-		completionItems := tx.requestCompletionAt(uri, lsp.Position{Character: 50, Line: 0})
-
-		expectToFindCompletionItemWithLabel(t, "clients c1 ON c1.id = client_custom_info.client_id", completionItems)
-		expectToFindCompletionItemWithLabel(t, "extra.info_types i1 ON i1.id = client_custom_info.info_type_id", completionItems)
-	})
+			for _, label := range tc.want {
+				expectToFindCompletionItemWithLabel(t, label, completionItems)
+			}
+		})
+	}
 }
 
 func expectToFindCompletionItemWithLabel(t *testing.T, lookupLabel string, completionItems []lsp.CompletionItem) *lsp.CompletionItem {
