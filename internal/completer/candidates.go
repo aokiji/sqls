@@ -236,16 +236,19 @@ func (c *Completer) joinCandidates(lastTable *parseutil.TableInfo,
 }
 
 func resolveTables(t *parseutil.TableInfo, cache *database.DBCache) []*parseutil.TableInfo {
-	if _, ok := cache.ColumnDescs(t.Name); ok {
-		return []*parseutil.TableInfo{t}
-	}
 	var rv []*parseutil.TableInfo
-	targetName := strings.ToLower(t.Name)
-	for _, cond := range cache.SortedTables() {
-		if strings.Contains(strings.ToLower(cond), targetName) {
-			rv = append(rv, &parseutil.TableInfo{
-				Name: cond,
-			})
+	for schema, tables := range cache.SchemaTables {
+		if _, ok := cache.ColumnDatabase(schema, t.Name); ok {
+			return []*parseutil.TableInfo{t}
+		}
+		targetName := strings.ToLower(t.Name)
+		for _, cond := range tables {
+			if strings.Contains(strings.ToLower(cond), targetName) {
+				rv = append(rv, &parseutil.TableInfo{
+					DatabaseSchema: schema,
+					Name: cond,
+				})
+			}
 		}
 	}
 	return rv

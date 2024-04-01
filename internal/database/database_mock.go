@@ -30,12 +30,12 @@ func NewMockDBRepository(_ *sql.DB) DBRepository {
 		MockTables:         func(ctx context.Context) ([]string, error) { return dummyDatabaseTables[defaultDatabase], nil },
 		MockDescribeTable: func(ctx context.Context, tableName string) ([]*ColumnDesc, error) {
 			var res []*ColumnDesc
-			schemaTables, ok := dummyColumns[defaultDatabase]; 
+			schemaTables, ok := dummyColumns[defaultDatabase]
 			if !ok {
-				return res, nil 
+				return res, nil
 			}
 
-			columnTables, ok := schemaTables[tableName] 
+			columnTables, ok := schemaTables[tableName]
 			if !ok {
 				return res, nil
 			}
@@ -52,9 +52,9 @@ func NewMockDBRepository(_ *sql.DB) DBRepository {
 		},
 		MockDescribeDatabaseTableBySchema: func(ctx context.Context, schemaName string) ([]*ColumnDesc, error) {
 			var res []*ColumnDesc
-			schemaTables, ok := dummyColumns[schemaName]; 
+			schemaTables, ok := dummyColumns[schemaName]
 			if !ok {
-				return res, nil 
+				return res, nil
 			}
 			for _, cd := range schemaTables {
 				res = append(res, cd...)
@@ -72,6 +72,10 @@ func NewMockDBRepository(_ *sql.DB) DBRepository {
 			return &sql.Rows{}, nil
 		},
 		MockDescribeForeignKeysBySchema: func(ctx context.Context, schemaName string) ([]*ForeignKey, error) {
+			foreignKeys, ok := foreignKeysBySchema[schemaName]
+			if !ok {
+				return nil, nil
+			}
 			return foreignKeys, nil
 		},
 	}
@@ -544,8 +548,8 @@ var dummyCityPopulationColumns = []*ColumnDesc{
 
 var dummyColumns = map[string]map[string][]*ColumnDesc{
 	"world": {
-		"city": dummyCityColumns,
-		"county": dummyCountryColumns,
+		"city":            dummyCityColumns,
+		"county":          dummyCountryColumns,
 		"countrylanguage": dummyCountryLanguageColumns,
 	},
 	"mysql": {
@@ -553,46 +557,50 @@ var dummyColumns = map[string]map[string][]*ColumnDesc{
 	},
 }
 
-var foreignKeys = []*ForeignKey{
-	{
-		[2]*ColumnBase{
-			{
-				Schema: "world",
-				Table:  "city",
-				Name:   "CountryCode",
+var foreignKeysBySchema = map[string][]*ForeignKey{
+	"world": {
+		{
+			[2]*ColumnBase{
+				{
+					Schema: "world",
+					Table:  "city",
+					Name:   "CountryCode",
+				},
+				{
+					Schema: "world",
+					Table:  "country",
+					Name:   "Code",
+				},
 			},
-			{
-				Schema: "world",
-				Table:  "country",
-				Name:   "Code",
+		},
+		{
+			[2]*ColumnBase{
+				{
+					Schema: "world",
+					Table:  "countrylanguage",
+					Name:   "CountryCode",
+				},
+				{
+					Schema: "world",
+					Table:  "country",
+					Name:   "Code",
+				},
 			},
 		},
 	},
-	{
-		[2]*ColumnBase{
-			{
-				Schema: "world",
-				Table:  "countrylanguage",
-				Name:   "CountryCode",
-			},
-			{
-				Schema: "world",
-				Table:  "country",
-				Name:   "Code",
-			},
-		},
-	},
-	{
-		[2]*ColumnBase{
-			{
-				Schema: "mysql",
-				Table:  "city_population",
-				Name:   "citi_id",
-			},
-			{
-				Schema: "world",
-				Table:  "city",
-				Name:   "ID",
+	"mysql": {
+		{
+			[2]*ColumnBase{
+				{
+					Schema: "mysql",
+					Table:  "city_population",
+					Name:   "city_id",
+				},
+				{
+					Schema: "world",
+					Table:  "city",
+					Name:   "ID",
+				},
 			},
 		},
 	},

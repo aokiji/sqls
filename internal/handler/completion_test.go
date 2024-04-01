@@ -364,6 +364,16 @@ var tableReferenceCase = []completionTestCase{
 		},
 	},
 	{
+		name:  "from filtered tables including non default schemas",
+		input: "select city_id from ci",
+		line:  0,
+		col:   22,
+		want: []string{
+			"city",
+			"mysql.city_population",
+		},
+	},
+	{
 		name:  "from quoted filtered tables",
 		input: "select CountryCode from `co",
 		line:  0,
@@ -382,6 +392,7 @@ var tableReferenceCase = []completionTestCase{
 			"city",
 			"country",
 			"countrylanguage",
+			"mysql.city_population",
 		},
 	},
 	{
@@ -395,6 +406,15 @@ var tableReferenceCase = []completionTestCase{
 		},
 	},
 	{
+		name:  "join filtered tables by schema",
+		input: "select CountryCode from city join mysql.c",
+		line:  0,
+		col:   40,
+		want: []string{
+			"mysql.city_population",
+		},
+	},
+	{
 		name:  "left join tables",
 		input: "select CountryCode from city left join ",
 		line:  0,
@@ -403,6 +423,7 @@ var tableReferenceCase = []completionTestCase{
 			"city",
 			"country",
 			"countrylanguage",
+			"mysql.city_population",
 		},
 	},
 	{
@@ -414,6 +435,7 @@ var tableReferenceCase = []completionTestCase{
 			"city",
 			"country",
 			"countrylanguage",
+			"mysql.city_population",
 		},
 	},
 	{
@@ -425,6 +447,7 @@ var tableReferenceCase = []completionTestCase{
 			"city",
 			"country",
 			"countrylanguage",
+			"mysql.city_population",
 		},
 	},
 	{
@@ -436,6 +459,7 @@ var tableReferenceCase = []completionTestCase{
 			"`city`",
 			"`country`",
 			"`countrylanguage`",
+			"`mysql.city_population`",
 		},
 	},
 	{
@@ -449,6 +473,15 @@ var tableReferenceCase = []completionTestCase{
 		},
 	},
 	{
+		name:  "insert filtered tables from non default schema",
+		input: "INSERT INTO mysql.c",
+		line:  0,
+		col:   19,
+		want: []string{
+			"mysql.city_population",
+		},
+	},
+	{
 		name:  "insert columns",
 		input: "INSERT INTO city (",
 		line:  0,
@@ -459,6 +492,21 @@ var tableReferenceCase = []completionTestCase{
 			"CountryCode",
 			"District",
 			"Population",
+		},
+		bad: []string{
+			"city",
+			"country",
+			"countrylanguage",
+		},
+	},
+	{
+		name:  "insert columns from non default schema",
+		input: "INSERT INTO mysql.city_population (",
+		line:  0,
+		col:   35,
+		want: []string{
+			"city_id",
+			"population",
 		},
 		bad: []string{
 			"city",
@@ -493,6 +541,7 @@ var tableReferenceCase = []completionTestCase{
 			"city",
 			"country",
 			"countrylanguage",
+			"mysql.city_population",
 		},
 	},
 	{
@@ -545,6 +594,7 @@ var tableReferenceCase = []completionTestCase{
 			"city",
 			"country",
 			"countrylanguage",
+			"mysql.city_population",
 		},
 	},
 	{
@@ -574,6 +624,16 @@ var whereCondition = []completionTestCase{
 		},
 	},
 	{
+		name:  "where columns in non default schema",
+		input: "select * from mysql.city_population where ",
+		line:  0,
+		col:   43,
+		want: []string{
+			"city_id",
+			"population",
+		},
+	},
+	{
 		name:  "where columns of specified table",
 		input: "select * from city where city.",
 		line:  0,
@@ -584,6 +644,16 @@ var whereCondition = []completionTestCase{
 			"CountryCode",
 			"District",
 			"Population",
+		},
+	},
+	{
+		name:  "where columns of specified table in non default schema",
+		input: "select * from mysql.city_population where city_population.",
+		line:  0,
+		col:   58,
+		want: []string{
+			"city_id",
+			"population",
 		},
 	},
 	{
@@ -868,6 +938,7 @@ var joinClauseCase = []completionTestCase{
 		col:   34,
 		want: []string{
 			"country c1 ON c1.Code = city.CountryCode",
+			"mysql.city_population c1 ON c1.city_id = city.ID",
 			"city",
 			"country",
 			"countrylanguage",
@@ -880,6 +951,7 @@ var joinClauseCase = []completionTestCase{
 		col:   38,
 		want: []string{
 			"country c1 ON c1.Code = c.CountryCode",
+			"mysql.city_population c1 ON c1.city_id = c.ID",
 			"city",
 			"country",
 			"countrylanguage",
@@ -908,12 +980,22 @@ var joinClauseCase = []completionTestCase{
 		},
 	},
 	{
+		name:  "join filtered tables with reference to another schema",
+		input: "select c.CountryCode from city c join c",
+		line:  0,
+		col:   39,
+		want: []string{
+			"mysql.city_population c1 ON c1.city_id = c.ID",
+		},
+	},
+	{
 		name:  "left join tables",
 		input: "select CountryCode from city left join ",
 		line:  0,
 		col:   39,
 		want: []string{
 			"country c1 ON c1.Code = city.CountryCode",
+			"mysql.city_population c1 ON c1.city_id = city.ID",
 			"city",
 			"country",
 			"countrylanguage",
@@ -1183,6 +1265,9 @@ func TestCompleteJoin(t *testing.T) {
 				var got []lsp.CompletionItem
 				if err := tx.conn.Call(tx.ctx, "textDocument/completion", completionParams, &got); err != nil {
 					t.Fatal("conn.Call textDocument/completion:", err)
+				}
+				for _, g := range got {
+					t.Log(g.Label)
 				}
 				testCompletionItem(t, tt.want, tt.bad, got)
 			})
