@@ -339,6 +339,12 @@ func (db *PostgreSQLDBRepository) DescribeForeignKeysBySchema(ctx context.Contex
 			AND a2.attnum = ANY (fk.confkey)
 		WHERE fk.contype = 'f'
 		    AND fk.connamespace = $1::regnamespace::oid
+		    AND (pg_has_role(c1.relowner, 'USAGE')
+			OR has_table_privilege(c1.oid, 'INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
+			OR has_any_column_privilege(c1.oid, 'INSERT, UPDATE, REFERENCES'))
+		    AND (pg_has_role(c2.relowner, 'USAGE')
+			OR has_table_privilege(c2.oid, 'INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
+			OR has_any_column_privilege(c2.oid, 'INSERT, UPDATE, REFERENCES'))
 		ORDER BY constraint_name, a1.attnum;
 		`, schemaName)
 	if err != nil {
