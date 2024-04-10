@@ -1,20 +1,25 @@
 package handler
 
 import (
+	"errors"
+	"fmt"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/sqls-server/sqls/internal/config"
 	"github.com/sqls-server/sqls/internal/database"
 	"github.com/sqls-server/sqls/internal/lsp"
 )
 
 type completionTestCase struct {
-	name  string
-	input string
-	line  int
-	col   int
-	want  []string
-	bad   []string
+	name      string
+	input     string
+	line      int
+	col       int
+	want      []string
+	bad       []string
+	filter    func(*lsp.CompletionItem) bool
+	validator func(*lsp.CompletionItem) error
 }
 
 var statementCase = []completionTestCase{
@@ -316,6 +321,16 @@ var selectExprCase = []completionTestCase{
 			"population",
 		},
 	},
+	{
+		name:  "columns of table from non default database filter by name",
+		input: "select city_population. from mysql.city_population",
+		line:  0,
+		col:   23,
+		want: []string{
+			"city_id",
+			"population",
+		},
+	},
 }
 
 var tableReferenceCase = []completionTestCase{
@@ -333,6 +348,15 @@ var tableReferenceCase = []completionTestCase{
 			"performance_schema",
 			"sys",
 			"world",
+			"mysql.city_population",
+		},
+	},
+	{
+		name:  "from tables from a non default database",
+		input: "select * from mysql.",
+		line:  0,
+		col:   20,
+		want: []string{
 			"mysql.city_population",
 		},
 	},
@@ -412,6 +436,28 @@ var tableReferenceCase = []completionTestCase{
 		col:   40,
 		want: []string{
 			"mysql.city_population",
+		},
+	},
+	{
+		name:  "join table referenced on clause",
+		input: "select CountryCode from city join mysql.city_population ON ",
+		line:  0,
+		col:   59,
+		want: []string{
+			"city",
+			"city_population",
+		},
+		filter: func(item *lsp.CompletionItem) bool {
+			return item.Detail == "referenced table"
+		},
+		validator: func(item *lsp.CompletionItem) error {
+			if item.Label == "city_population" {
+				expectedDoc := "# `city_population` table\n\n\n| Name                 | Type                           | Primary key     | Default              | Extra                |\n| :------------------- | :----------------------------- | :-------------- | :------------------- | :------------------- |\n| `population`         | `int(11)`                      |                 | `0`                  |                      |\n| `city_id`            | `int(11)`                      | `PRI`           | `<null>`             |                      |\n"
+				if diff := cmp.Diff(expectedDoc, item.Documentation.Value); diff != "" {
+					return errors.New(fmt.Sprintf("Expected different documentation for city_population, diff:\n%s", diff))
+				}
+			}
+			return nil
 		},
 	},
 	{
@@ -969,6 +1015,17 @@ var joinClauseCase = []completionTestCase{
 		},
 	},
 	{
+		name:  "join filtered tables reversed",
+		input: "select CountryCode from country join cou",
+		line:  0,
+		col:   40,
+		want: []string{
+			"countrylanguage c1 ON c1.CountryCode = country.Code",
+			"country",
+			"countrylanguage",
+		},
+	},
+	{
 		name:  "join filtered tables with reference",
 		input: "select c.CountryCode from city c join co",
 		line:  0,
@@ -1216,7 +1273,7 @@ func TestCompleteMain(t *testing.T) {
 				if err := tx.conn.Call(tx.ctx, "textDocument/completion", completionParams, &got); err != nil {
 					t.Fatal("conn.Call textDocument/completion:", err)
 				}
-				testCompletionItem(t, tt.want, tt.bad, got)
+				testCompletionItem(t, &tt, got)
 			})
 		}
 	}
@@ -1266,10 +1323,7 @@ func TestCompleteJoin(t *testing.T) {
 				if err := tx.conn.Call(tx.ctx, "textDocument/completion", completionParams, &got); err != nil {
 					t.Fatal("conn.Call textDocument/completion:", err)
 				}
-				for _, g := range got {
-					t.Log(g.Label)
-				}
-				testCompletionItem(t, tt.want, tt.bad, got)
+				testCompletionItem(t, &tt, got)
 			})
 		}
 	}
@@ -1325,22 +1379,30 @@ func TestCompleteNoneDBConnection(t *testing.T) {
 	}
 }
 
-func testCompletionItem(t *testing.T, expectLabels []string, badLabels []string, gotItems []lsp.CompletionItem) {
+func testCompletionItem(t *testing.T, tc *completionTestCase, gotItems []lsp.CompletionItem) {
 	t.Helper()
 
-	itemMap := map[string]struct{}{}
+	itemMap := map[string]*lsp.CompletionItem{}
 	for _, item := range gotItems {
-		itemMap[item.Label] = struct{}{}
+		if tc.filter != nil && !tc.filter(&item) {
+			continue
+		}
+		itemMap[item.Label] = &item
 	}
 
-	for _, el := range expectLabels {
-		_, ok := itemMap[el]
+	for _, el := range tc.want {
+		item, ok := itemMap[el]
 		if !ok {
 			t.Errorf("expected to be included in the results, expect candidate %q", el)
+		} else if tc.validator != nil {
+			if err := tc.validator(item); err != nil {
+				t.Errorf("item %v didnt pass validaton: %s", item, err)
+			}
+
 		}
 	}
 
-	for _, el := range badLabels {
+	for _, el := range tc.bad {
 		_, ok := itemMap[el]
 		if ok {
 			t.Errorf("should not be included in the results, got candidate %q", el)
